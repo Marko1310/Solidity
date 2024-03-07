@@ -6,6 +6,8 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract BlankERC20 is ERC20, Ownable {
     mapping(address => bool) private hasBeenHolder;
+    mapping(address => uint256) public votes;
+
 
     uint256 public uniqueHolderCount;
 
@@ -22,7 +24,10 @@ contract BlankERC20 is ERC20, Ownable {
 
     // Define a constructor that initializes the ERC20 token with a name "Blank Token" and symbol "BT".
     // This constructor should set initial values for mintPerTxCap and transferPerTxCap.
-    constructor() ERC20("", "") {}
+    constructor() ERC20("Blank token", "BT") {
+        mintPerTxCap = 100;
+        transferPerTxCap =10;
+    }
 
     // ------------------------------------------------------------------------------------------
 
@@ -41,6 +46,15 @@ contract BlankERC20 is ERC20, Ownable {
     // 3. If the recipient has not been a holder, increase uniqueHolderCount and mark them as a holder in hasBeenHolder.
     // 4. Use the _mint function from the ERC20 standard to mint the tokens to the specified address.
 
+    function mint(address to, uint amount) public {
+        require(amount <= mintPerTxCap, "Mint amount exceeds cap");
+        if (!hasBeenHolder[to]) {
+            uniqueHolderCount++;
+            hasBeenHolder[to] = true;
+        }
+        _mint(to, amount);
+    }
+
     // ------------------------------------------------------------------------------------------
 
     // TASK 3
@@ -58,6 +72,17 @@ contract BlankERC20 is ERC20, Ownable {
     // 3. Use super.transfer to perform the transfer operation.
     // 4. Emit a BlankTransfer event with appropriate parameters after a successful transfer.
     // Note: Remember to return a boolean value as per the ERC20 standard.
+        function transfer(address to, uint256 amount) public virtual override returns (bool) {
+            require(amount <= transferPerTxCap, "Transfer amount exceeds cap");
+            if (!hasBeenHolder[to]) {
+            uniqueHolderCount++;
+            hasBeenHolder[to] = true;
+        }
+            super.transfer(to, amount);
+            emit BlankTransfer(msg.sender, to, amount);
+            return true;
+        }
+
 
     // ------------------------------------------------------------------------------------------
 
@@ -69,7 +94,10 @@ contract BlankERC20 is ERC20, Ownable {
     // 3. Emit a BlankBurn event with the caller's address, amount.
 
     // This is how burn function signature needs to be defined.
-    function burn(uint256 amount) public {}
+    function burn(uint256 amount) public {
+        super._burn(msg.sender, amount);
+        emit BlankBurn(msg.sender, amount);
+    }
 
     // ------------------------------------------------------------------------------------------
 
@@ -84,6 +112,14 @@ contract BlankERC20 is ERC20, Ownable {
     // 2. Update their global variants with the new cap value.
     // 3. Add necessary access control to ensure only the contract owner can call these functions.
 
+    function setMintCap(uint256 _cap) public onlyOwner {
+        mintPerTxCap = _cap;
+    }
+
+    function setTransferCap(uint256 _cap) public onlyOwner {
+        transferPerTxCap = _cap;
+    }
+
     // ------------------------------------------------------------------------------------------
 
     // TASK 6
@@ -93,6 +129,11 @@ contract BlankERC20 is ERC20, Ownable {
 
     // Implement getter for transferPerTxCap to view their current values:
     // It should be simple public view function that return the respective cap values.
+    function getTransferPerTxCapValue() public view returns (uint) {
+        return transferPerTxCap;
+    }
+
+
 
     // ------------------------------------------------------------------------------------------
 
@@ -104,6 +145,10 @@ contract BlankERC20 is ERC20, Ownable {
     // Implement getter for mintPerTxCap to view their current values:
     // It should be simple public view function that return the respective cap values.
 
+    function getMintPerTxCapValue() public view returns (uint) {
+        return mintPerTxCap;
+    }
+
     // ------------------------------------------------------------------------------------------
 
     // **TASK 8**
@@ -112,4 +157,13 @@ contract BlankERC20 is ERC20, Ownable {
     // 1. Accept `uint256 voteCount` as a parameter.
     // 2. Ensure the caller has a balance >= voteCount using require.
     // 3. Update the votes mapping to increment the caller's votes by voteCount.
+
+    function vote(uint256 voteCount) public {
+        require(
+            balanceOf(msg.sender) >= voteCount,
+            "Insufficient balance to vote"
+        );
+
+        votes[msg.sender] += voteCount;
+    }
 }
